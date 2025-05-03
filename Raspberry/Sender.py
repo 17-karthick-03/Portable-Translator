@@ -8,7 +8,7 @@ while True:
     try:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         filename = f"frame_{timestamp}.jpg"
-        filepath = f"/home/karthick/Downloads/{filename}"
+        filepath = f"path/to/the/directory/{filename}"
         os.system(f"fswebcam -q -r 640x480 --no-banner {filepath}")
         print(f"Captured frame: {filename}")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
