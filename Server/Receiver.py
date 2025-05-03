@@ -12,8 +12,7 @@ model = model_dict['model']
 expected_features = model.n_features_in_
 
 # Define Image Folder
-frame_folder = "path/to/the/directory/frame"
-os.makedirs(frame_folder, exist_ok=True)  # Ensure folder exists
+frame_folder = "path/to/the/directory/PiFrames"
 
 # MediaPipe Hand Detection Setup
 mp_hands = mp.solutions.hands
@@ -22,10 +21,10 @@ mp_drawing_styles = mp.solutions.drawing_styles
 hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
 # Class Labels
-labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'I', 6: 'L', .........}
+labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'I',.............}
 
 # Socket Server Setup
-server_ip = "Change-to-your-Laptor's-IP"
+server_ip = "Change-to-your-Laptor's-IP" 
 server_port = 5000
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((server_ip, server_port))
@@ -33,29 +32,18 @@ server_socket.listen(1)
 
 print("[INFO] Waiting for connection from Raspberry Pi...")
 
-def receive_image(conn):
-    try:
-        # Receive the filename first
-        filename = conn.recv(1024).decode().strip()
-        image_path = os.path.join(frame_folder, filename)
-        print(f"[INFO] Receiving image: {filename}")
-
-        # Open file to write binary data
-        with open(image_path, "wb") as file:
-            while True:
-                chunk = conn.recv(4096)
-                if not chunk:
-                    break
-                file.write(chunk)
-
-        print(f"[INFO] Image received and saved: {image_path}")
-        return image_path
-    except Exception as e:
-        print(f"[ERROR] Error receiving image: {e}")
-        return None
-
 def predict_sign(image_path):
     try:
+        # Wait for file to appear (Max 5 sec)
+        wait_time = 0
+        while not os.path.exists(image_path) and wait_time < 5:
+            time.sleep(0.5)
+            wait_time += 0.5
+
+        if not os.path.exists(image_path):
+            print(f"[ERROR] File not found after waiting: {image_path}")
+            return "Error: File Not Found"
+
         # Load and Process Image
         img = cv2.imread(image_path)
         if img is None:
@@ -67,7 +55,7 @@ def predict_sign(image_path):
         results = hands.process(img_rgb)
 
         if not results.multi_hand_landmarks:
-            return "No hand detected"
+            return "Null"
 
         data_aux, x_, y_ = [], [], []
         for hand_landmarks in results.multi_hand_landmarks:
@@ -107,14 +95,12 @@ while True:
         conn, addr = server_socket.accept()
         print(f"[INFO] Connected by {addr}")
 
-        # Receive and save the image
-        image_path = receive_image(conn)
-        if not image_path:
-            conn.sendall("Error: Image Not Received".encode())
-            conn.close()
-            continue
+        # Receive image filename from Raspberry Pi
+        filename = conn.recv(1024).decode().strip()
+        print(f"[INFO] Received filename: '{filename}'")
 
         # Predict the class
+        image_path = os.path.join(frame_folder, filename)
         prediction = predict_sign(image_path)
         print(f"[INFO] Predicted sign: {prediction}")
 
